@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Simulador Concurrencia y Serializabilidad - Ajuste aristas para ejecución secuencial</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #FFE7D6;
+    margin: 0;
+    padding: 0;
+    color: #533724;
+  }
+  header {
+    background: #F4A261;
+    color: #fff;
+    padding: 12px 20px;
+    font-size: 1.8rem;
+    text-align: center;
+    font-weight: bold;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    user-select:none;
+  }
+  main {
+    padding: 20px;
+    box-sizing: border-box;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  #desafios-panel {
+    background: #FFF3E0;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 3px 3px 8px rgba(0,0,0,0.1);
+    max-width: 700px;
+    margin: 30px auto;
+    user-select:none;
+  }
+  #desafios-panel h2 {
+    margin-top: 0;
+  }
+  .desafio {
+    border: 2px solid #E76F51;
+    border-radius: 8px;
+    margin-bottom: 14px;
+    padding: 14px;
+    background: #FFEDD6;
+    cursor: pointer;
+    transition: background 0.25s ease;
+  }
+  .desafio:hover {
+    background: #FFD9B8;
+  }
+  .desafio.selected {
+    border-color: #D65A3E;
+    background: #FFBC94;
+    font-weight: 700;
+  }
+  #desc-desafio {
+    background: #FFE7D6;
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 16px;
+    min-height: 160px;
+    color: #7C4A1A;
+    white-space: pre-line;
+  }
+  #start-desafio {
+    background: #E76F51;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  #start-desafio:disabled {
+    background: #CEB09C;
+    cursor: default;
+  }
+  #start-desafio:hover:not(:disabled) {
+    background: #D65A3E;
+  }
+  /* Simulador */
+  #simulador-container {
+    display: none;
+    margin-top: 30px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+  }
+  section {
+    background: #FFF1E6;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 3px 3px 8px rgba(0,0,0,0.1);
+    flex-grow: 1;
+    min-width: 320px;
+    max-width: 600px;
+  }
+  #controls {
+    max-width: 380px;
+  }
+  label, select, input[type=checkbox], button {
+    font-size: 1rem;
+    margin-bottom: 14px;
+    display: block;
+  }
+  button {
+    background: #E76F51;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    margin-top: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.3s ease;
+    user-select:none;
+  }
+  button:hover:not(:disabled) {
+    background: #D65A3E;
+  }
+  button:disabled {
+    background: #CEB09C;
+    cursor: default;
+  }
+  select {
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1.5px solid #E76F51;
+  }
+  .switch-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 16px 0;
+  }
+  .switch-label {
+    font-weight: 600;
+  }
+  #account-values {
+    font-size: 1.3rem;
+  }
+  #account-values span {
+    margin-right: 20px;
+    font-weight: bold;
+  }
+  #invariant {
+    font-size: 1.3rem;
+    margin-top: 14px;
+    padding: 12px;
+    background: #F8AEAE;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 700;
+    color: #7C2000;
+    box-shadow: inset 0 0 15px #D94E42;
+    user-select:none;
+  }
+  #log {
+    max-height: 280px;
+    overflow-y: auto;
+    background: #FFDFC1;
+    padding: 10px;
+    border-radius: 8px;
+    font-family: monospace;
+    font-size: 0.9rem;
+    color: #6E3B0B;
+    user-select:none;
+  }
+  #log .conflict {
+    background: #F28F8F;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+  }
+  #graph-container {
+    flex: 1 1 420px;
+    min-width: 420px;
+    background: #FFF5E1;
+    border-radius: 12px;
+    padding: 12px;
+    box-sizing: border-box;
+  }
+  #graph {
+    width: 100%;
+    height: 320px;
+    background: #FFE7D6;
+    user-select:none;
+  }
+  .node circle {
+    fill: #E76F51;
+    stroke: #8B422A;
+    stroke-width: 2px;
+  }
+  .node text {
+    fill: white;
+    font-weight: 700;
+    font-size: 18px;
+    user-select: none;
+    dominant-baseline: middle;
+    text-anchor: middle;
+  }
+  .edge {
+    fill: none;
+    stroke: #533724;
+    stroke-width: 3px;
+    marker-end: url(#arrowhead);
+    transition: stroke 0.3s ease;
+  }
+  .edge.conflict {
+    stroke: #D62828;
+  }
+  .node.conflict circle {
+    fill: #D62828;
+    stroke: #7F1B1B;
+  }
+  .highlight-step {
+    background: #FFBB91 !important;
+  }
+  .highlight-commit {
+    font-weight: 700;
+    color: #2F855A;
+  }
+  .highlight-rollback {
+    font-weight: 700;
+    color: #D62828;
+  }
+  #deadlock-alert {
+    background: #D62828;
+    color: white;
+    padding: 10px;
+    font-weight: 700;
+    text-align: center;
+    border-radius: 8px;
+    margin-top: 12px;
+    display: none;
+    user-select:none;
+  }
+  #conflict-alert {
+    background: #F28F8F;
+    color: #7F1B1B;
+    padding: 10px;
+    font-weight: 700;
+    text-align: center;
+    border-radius: 8px;
+    margin-top: 8px;
+    display: none;
+    user-select:none;
+  }
+  #exec-buttons {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+  }
+  #exec-buttons button {
+    min-width: 150px;
+  }
+</style>
+</head>
+<body>
+<header>Simulador educativo: Concurrencia, Transacciones y Serializabilidad</header>
+<main>
+  <section id="desafios-panel" aria-label="Panel de selección de desafíos pedagógicos">
+    <h2>Desafíos pedagógicos</h2>
+    <div id="desafios-list" role="list"></div>
+    <div id="desc-desafio" aria-live="polite" aria-atomic="true" tabindex="0" style="padding:15px; background:#FFEDD6; border-radius:10px; min-height:150px; color:#7C4A1A; margin-bottom:16px;">
+      <em>Seleccione un desafío para leer su descripción y configurar el simulador.</em>
+    </div>
+    <button id="start-desafio" disabled>Iniciar Desafío</button>
+  </section>
+
+  <section id="simulador-container" aria-label="Simulador de concurrencia" style="display:none;">
+    <section id="controls" aria-label="Controles y configuración">
+      <h2>Configuración y controles</h2>
+      <label for="isolation-level">Nivel de aislamiento:</label>
+      <select id="isolation-level" aria-describedby="isolation-desc">
+        <option value="read-uncommitted">Read Uncommitted</option>
+        <option value="read-committed">Read Committed</option>
+        <option value="repeatable-read">Repeatable Read</option>
+        <option value="serializable" selected>Serializable</option>
+      </select>
+      <p id="isolation-desc" style="font-size:0.85rem; margin-top:-8px; margin-bottom:12px; color:#8B5E3C;">
+        Determina cómo de restrictivo es el control de concurrencia.
+      </p>
+      <div class="switch-container">
+        <label for="strict-2pl" class="switch-label">Strict 2PL (Bloqueo estricto):</label>
+        <input type="checkbox" id="strict-2pl" />
+      </div>
+      <label for="initial-A">Saldo inicial Cuenta A:</label>
+      <input type="number" id="initial-A" value="1000" min="0" />
+      <label for="initial-B">Saldo inicial Cuenta B:</label>
+      <input type="number" id="initial-B" value="500" min="0" />
+      <label for="initial-C">Saldo inicial Cuenta C:</label>
+      <input type="number" id="initial-C" value="1000" min="0" />
+      <button id="reset-simulation" aria-label="Reiniciar simulación y valores">Reiniciar simulación</button>
+      <hr />
+      <div id="exec-buttons" aria-label="Botones para ejecutar paso de transacciones">
+        <button id="exec-T1-step" aria-label="Ejecutar siguiente paso de T1">Ejecutar paso T1</button>
+        <button id="exec-T2-step" aria-label="Ejecutar siguiente paso de T2">Ejecutar paso T2</button>
+      </div>
+      <div id="deadlock-alert" role="alert" aria-live="assertive">DEADLOCK DETECTED: Abrazo mortal entre transacciones.</div>
+      <div id="conflict-alert" role="alert" aria-live="assertive"></div>
+    </section>
+    <section id="transactions" aria-label="Detalle de transacciones">
+      <h2>Transacciones</h2>
+      <div>
+        <h3>T1 (Transfiere $200 de A a B)</h3>
+        <ol id="T1-steps" style="padding-left:20px; user-select:none;"></ol>
+      </div>
+      <div>
+        <h3>T2 (Transfiere $100 de A a C)</h3>
+        <ol id="T2-steps" style="padding-left:20px; user-select:none;"></ol>
+      </div>
+    </section>
+    <section id="state" aria-label="Estado de la base de datos y sistema">
+      <h2>Estado de cuentas e invariante</h2>
+      <div id="account-values" aria-live="polite" aria-atomic="true"></div>
+      <div id="invariant"></div>
+      <h2>Bitácora de eventos</h2>
+      <div id="log" aria-live="polite" aria-atomic="false"></div>
+      <button id="back-to-desafios" style="margin-top:12px; background:#D65A3E; color:white; font-weight:bold; border:none; padding:8px 10px; border-radius:6px; cursor:pointer;">Volver a desafíos</button>
+    </section>
+    <section id="graph-container" aria-label="Grafo de precedencia y conflictos">
+      <h2>Grafo de precedencia</h2>
+      <svg id="graph" role="img" aria-label="Grafo visual de precedencia de transacciones"></svg>
+    </section>
+  </section>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  const desafios = [
+    {
+      id: 'd1',
+      nombre: 'El Misterio de la Actualización Perdida',
+      resumen: 'Provoca la ruptura del invariante haciendo aparecer o desaparecer dinero',
+      descripcion: `Objetivo: Tu misión es lograr que el saldo total del banco (el invariante de los $2500) se rompa mediante la ejecución concurrente de T1 y T2 haciendo que aparezca o desaparezca dinero de la nada.
+
+Reglas y pistas para resolverlo:
+- Libertad absoluta: Puedes ejecutar las operaciones en cualquier orden.
+- El principio del conflicto: Recuerda que solo hay conflicto real cuando dos transacciones intentan operar sobre la misma Cuenta A y al menos una realiza WRITE.
+- Tu meta: Encuentra el entrelazado exacto de pasos sobre la Cuenta A que provoque que una transacción sobrescriba el trabajo de la otra sin enterarse.
+- Prueba qué sucede si modificas el nivel de aislamiento.`,
+      config: {
+        isolation: 'read-committed',
+        strict2pl: false,
+        initial: {A:1000,B:500,C:1000}
+      }
+    },
+    {
+      id: 'd2',
+      nombre: 'La secuencia segura',
+      resumen: 'Demuestra que la concurrencia puede ser segura y mantener consistencia',
+      descripcion: `Objetivo: Demostrar que se puede aprovechar la concurrencia sin destruir la consistencia del banco.
+
+Reglas del juego y pistas para resolverlo:
+- No es necesario ejecutar una transacción completa antes que la otra.
+- Observa el grafo de precedencia: tu meta es mantener el invariante en $2500 y un grafo sin ciclos.
+- Encuentra un orden de ejecución intercalado que respete dependencias de lectura y escritura.
+- Prueba distintos niveles de aislamiento.`,
+      config: {
+        isolation: 'repeatable-read',
+        strict2pl: false,
+        initial: {A:1000,B:500,C:1000}
+      }
+    },
+    {
+      id: 'd3',
+      nombre: 'El Fantasma del ABORT (Lectura Sucia)',
+      resumen: 'Experimenta por qué leer datos no confirmados es peligroso',
+      descripcion: `Objetivo: Experimentar de primera mano por qué leer información que aún no ha sido confirmada puede causar problemas.
+
+Reglas:
+- Configura nivel de aislamiento Read Uncommitted.
+- T1 modifica saldo de A pero no hace COMMIT.
+- T2 lee ese valor "sucio".
+- T1 hace rollback.
+- Observa qué saldo usó T2 y cómo cambia al subir el aislamiento a Read Committed.`,
+      config: {
+        isolation: 'read-uncommitted',
+        strict2pl: false,
+        initial: {A:1000,B:500,C:1000}
+      }
+    },
+    {
+      id: 'd4',
+      nombre: 'El Dato Cambiante a Mitad de Camino (Lectura No Repetible)',
+      resumen: 'Comprueba la inestabilidad de datos cuando se leen dos veces',
+      descripcion: `Objetivo: Comprobar la inestabilidad de datos cuando una transacción lee dos veces el mismo recurso.
+
+Reglas:
+- Configura nivel Read Committed.
+- T2 lee Cuenta A.
+- En medio de T2, T1 ejecuta y hace COMMIT en A.
+- T2 vuelve a leer A.
+- Compara lecturas inicial y final de T2.`,
+      config: {
+        isolation: 'read-committed',
+        strict2pl: false,
+        initial: {A:1000,B:500,C:1000}
+      }
+    },
+    {
+      id: 'd5',
+      nombre: 'El Abrazo Mortal (Deadlock con Strict 2PL)',
+      resumen: 'Provoca bloqueo total entre T1 y T2 esperando recursos mutuamente',
+      descripcion: `Objetivo: Provocar un bloqueo sistémico total.
+
+Reglas:
+- Activa Strict 2PL.
+- Diseña secuencia donde T1 bloquea Cuenta A y T2 bloquea Cuenta B.
+- Luego cada uno intenta pedir el recurso que tiene el otro.
+- Observa la alerta de deadlock y estados WAITING.
+- El simulador detectará ciclo en espera y mostrará alerta.`,
+      config: {
+        isolation: 'serializable',
+        strict2pl: true,
+        initial: {A:1000,B:500,C:1000}
+      }
+    }
+  ];
+
+  const transacciones = {
+    T1: [
+      { op: 'READ', var: 'A', desc: 'Lee saldo Cuenta A' },
+      { op: 'SUB', var: 'A', val: 200, desc: 'Descuenta $200 en memoria' },
+      { op: 'WRITE', var: 'A', desc: 'Escribe saldo modificado de A' },
+      { op: 'READ', var: 'B', desc: 'Lee saldo Cuenta B' },
+      { op: 'ADD', var: 'B', val: 200, desc: 'Suma $200 en memoria' },
+      { op: 'WRITE', var: 'B', desc: 'Escribe saldo modificado de B' },
+      { op: 'COMMIT', desc: 'Confirma transacción' }
+    ],
+    T2: [
+      { op: 'READ', var: 'A', desc: 'Lee saldo Cuenta A' },
+      { op: 'SUB', var: 'A', val: 100, desc: 'Descuenta $100 en memoria' },
+      { op: 'WRITE', var: 'A', desc: 'Escribe saldo modificado de A' },
+      { op: 'READ', var: 'C', desc: 'Lee saldo Cuenta C' },
+      { op: 'ADD', var: 'C', val: 100, desc: 'Suma $100 en memoria' },
+      { op: 'WRITE', var: 'C', desc: 'Escribe saldo modificado de C' },
+      { op: 'COMMIT', desc: 'Confirma transacción' }
+    ]
+  };
+
+  // DOM Refs
+  const desafiosListDiv = document.getElementById('desafios-list');
+  const descDesafioDiv = document.getElementById('desc-desafio');
+  const startDesafioBtn = document.getElementById('start-desafio');
+  const simuladorContainer = document.getElementById('simulador-container');
+  const backToDesafiosBtn = document.getElementById('back-to-desafios');
+
+  // Simulador DOM refs
+  const T1List = document.getElementById('T1-steps');
+  const T2List = document.getElementById('T2-steps');
+  const accountValuesDiv = document.getElementById('account-values');
+  const invariantDiv = document.getElementById('invariant');
+  const logDiv = document.getElementById('log');
+  const graphSVG = document.getElementById('graph');
+  const isolationSelect = document.getElementById('isolation-level');
+  const strict2PLCheckbox = document.getElementById('strict-2pl');
+  const resetBtn = document.getElementById('reset-simulation');
+  const execT1Btn = document.getElementById('exec-T1-step');
+  const execT2Btn = document.getElementById('exec-T2-step');
+  const deadlockAlert = document.getElementById('deadlock-alert');
+  const conflictAlert = document.getElementById('conflict-alert');
+  const initialAInput = document.getElementById('initial-A');
+  const initialBInput = document.getElementById('initial-B');
+  const initialCInput = document.getElementById('initial-C');
+
+
+  let DB = {};
+  let initialDB = {};
+  let memory = { T1: {}, T2: {} };
+  let executedSteps = { T1: 0, T2: 0 };
+  let locks = {};
+  let transactionStatus = { T1: 'active', T2: 'active' };
+  let precedenceGraph = { nodes: ['T1','T2'], edges: [], _addedEdges: new Set() };
+  let selectedDesafio = null;
+
+  // Render listado desafíos
+  function renderDesafiosList() {
+    desafiosListDiv.innerHTML = '';
+    desafios.forEach(d => {
+      const dDiv = document.createElement('div');
+      dDiv.classList.add('desafio');
+      dDiv.setAttribute('role', 'listitem');
+      dDiv.tabIndex = 0;
+      dDiv.textContent = `${d.nombre}: ${d.resumen}`;
+      dDiv.dataset.id = d.id;
+      dDiv.addEventListener('click', () => selectDesafio(d.id));
+      dDiv.addEventListener('keydown', e => {
+        if(e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          selectDesafio(d.id);
+        }
+      });
+      desafiosListDiv.appendChild(dDiv);
+    });
+  }
+
+  function selectDesafio(id) {
+    if(selectedDesafio === id) return;
+    selectedDesafio = id;
+    Array.from(desafiosListDiv.children).forEach(div => {
+      div.classList.toggle('selected', div.dataset.id === id);
+    });
+    const d = desafios.find(x => x.id === id);
+    descDesafioDiv.textContent = d ? d.descripcion : '';
+    startDesafioBtn.disabled = !d;
+    startDesafioBtn.focus();
+  }
+
+  function log(msg, conflict=false) {
+    const p = document.createElement('div');
+    p.textContent = msg;
+    if(conflict) p.classList.add('conflict');
+    logDiv.appendChild(p);
+    logDiv.scrollTop = logDiv.scrollHeight;
+  }
+
+  // Simulador funciones
+
+  function resetSimulation() {
+    if(!selectedDesafio) return;
+    const d = desafios.find(x => x.id === selectedDesafio);
+    if(!d) return;
+
+    DB.A = d.config.initial.A || 1000;
+    DB.B = d.config.initial.B || 500;
+    DB.C = d.config.initial.C || 1000;
+    initialDB = {...DB};
+    isolationSelect.value = d.config.isolation || 'read-committed';
+    strict2PLCheckbox.checked = d.config.strict2pl || false;
+
+    initialAInput.value = DB.A;
+    initialBInput.value = DB.B;
+    initialCInput.value = DB.C;
+
+    memory = { T1: {}, T2: {} };
+    executedSteps = { T1: 0, T2: 0 };
+    locks = {};
+    transactionStatus = { T1: 'active', T2: 'active' };
+    precedenceGraph.edges = [];
+    precedenceGraph._addedEdges = new Set();
+    deadlockAlert.style.display = 'none';
+    conflictAlert.style.display = 'none';
+    logDiv.textContent = '';
+    updateAccountValues();
+    updateInvariant();
+    updateTransStepsUI();
+    updateGraph();
+    updateStatusButtons();
+  }
+
+  function updateAccountValues() {
+    accountValuesDiv.innerHTML = `
+      <span>Cuenta A: $${DB.A}</span>
+      <span>Cuenta B: $${DB.B}</span>
+      <span>Cuenta C: $${DB.C}</span>
+    `;
+  }
+
+  function updateInvariant() {
+    const suma = DB.A + DB.B + DB.C;
+    const esperado = initialDB.A + initialDB.B + initialDB.C;
+    let msg = `Suma total de cuentas: $${suma}`;
+
+    if (suma !== esperado) {
+      invariantDiv.style.background = '#FFADAD';
+      invariantDiv.style.color = '#7F1B1B';
+      msg += ' ⚠️ ¡Invariante roto! Dinero apareció o desapareció.';
+    } else {
+      invariantDiv.style.background = '#C6F6D5';
+      invariantDiv.style.color = '#22543D';
+    }
+    invariantDiv.textContent = msg;
+  }
+
+  function updateTransStepsUI() {
+    T1List.innerHTML = '';
+    T2List.innerHTML = '';
+
+    function createStepItem(trans, idx) {
+      const li = document.createElement('li');
+      const step = transacciones[trans][idx];
+      li.textContent = step.desc;
+      if (idx === executedSteps[trans]) li.classList.add('highlight-step');
+      if (step.op === 'COMMIT') li.classList.add('highlight-commit');
+      if (step.op === 'ROLLBACK') li.classList.add('highlight-rollback');
+      return li;
+    }
+
+    for(let i=0; i < transacciones.T1.length; i++) {
+      T1List.appendChild(createStepItem('T1', i));
+    }
+    for(let i=0; i < transacciones.T2.length; i++) {
+      T2List.appendChild(createStepItem('T2', i));
+    }
+  }
+
+  function updateStatusButtons() {
+    execT1Btn.disabled = executedSteps.T1 >= transacciones.T1.length || transactionStatus.T1 !== 'active';
+    execT2Btn.disabled = executedSteps.T2 >= transacciones.T2.length || transactionStatus.T2 !== 'active';
+  }
+
+  function requestLock(tx, resource, mode) {
+    if (!locks[resource]) locks[resource] = { locker: null, queue: [] };
+    const lockInfo = locks[resource];
+
+    if (lockInfo.locker === null) {
+      lockInfo.locker = tx;
+      log(`${tx} adquiere bloqueo en ${resource} (modo ${mode})`);
+      return true;
+    }
+    if (lockInfo.locker === tx) {
+      return true;
+    }
+
+    if (!lockInfo.queue.find(rq => rq.tx === tx)) {
+      lockInfo.queue.push({ tx, mode });
+      log(`${tx} queda en espera por recurso ${resource} bloqueado por ${lockInfo.locker}`, true);
+    }
+    transactionStatus[tx] = 'waiting';
+    updateStatusButtons();
+    checkDeadlock();
+    return false;
+  }
+
+  function releaseLocks(tx) {
+    for (const [resource, lockInfo] of Object.entries(locks)) {
+      if (lockInfo.locker === tx) {
+        lockInfo.locker = null;
+        log(`${tx} libera bloqueo en ${resource}`);
+        if(lockInfo.queue.length > 0) {
+          const next = lockInfo.queue.shift();
+          lockInfo.locker = next.tx;
+          log(`${next.tx} adquiere bloqueo en ${resource} (modo ${next.mode})`);
+          if(transactionStatus[next.tx] === 'waiting') {
+            transactionStatus[next.tx] = 'active';
+            log(`${next.tx} pasa a estado activo`);
+          }
+        }
+      } else {
+        lockInfo.queue = lockInfo.queue.filter(rq => rq.tx !== tx);
+      }
+    }
+    updateStatusButtons();
+  }
+
+  // NUEVA lógica: detectar si ejecutó todo T1 antes que T2 o viceversa para evitar aristas inversas innecesarias
+  // Devuelve true si la ejecución es secuencial estricta: todo T1 antes T2 o todo T2 antes T1
+  function esEjecucionSecuencial() {
+    if(executedSteps.T1 === transacciones.T1.length && executedSteps.T2 === 0) return true; // Todo T1 luego T2
+    if(executedSteps.T2 === transacciones.T2.length && executedSteps.T1 === 0) return true; // Todo T2 luego T1
+    return false;
+  }
+
+  function detectConflictsAndUpdateGraph(newOp) {
+    const op = newOp.operation;
+    const tx = newOp.transaccion;
+    const varX = op.var;
+    if (!varX) return;
+    const otherTx = (tx === 'T1') ? 'T2' : 'T1';
+
+    if (!precedenceGraph._addedEdges) precedenceGraph._addedEdges = new Set();
+
+    const otherSteps = transacciones[otherTx];
+    for(let i = 0; i < executedSteps[otherTx]; i++) {
+      const prevOp = otherSteps[i];
+      if(prevOp.var === varX) {
+        if(op.op === 'READ' && prevOp.op === 'READ') continue;
+
+        let from, to;
+
+        if(prevOp.op === 'READ' && op.op === 'WRITE') {
+          from = otherTx; to = tx;
+        } else if(prevOp.op === 'WRITE' && op.op === 'READ') {
+          from = tx; to = otherTx;
+        } else if(prevOp.op === 'WRITE' && op.op === 'WRITE') {
+          from = otherTx; to = tx;
+        } else {
+          continue;
+        }
+
+        // Control para no añadir ambas aristas si ejecucion secuencial (todo T1 antes T2 o viceversa)
+        if(esEjecucionSecuencial()){
+          if(from === 'T2' && to === 'T1') {
+            // Evitamos arista inversa si ejecución secuencial (confirma el orden)
+            continue;
+          }
+          if(from === 'T1' && to === 'T2' && executedSteps[tx] === transacciones[tx].length){
+            // En ejecución secuencial completa, no añadimos la arista inútil
+          }
+        }
+
+        const key = `${from}->${to}`;
+        if(!precedenceGraph._addedEdges.has(key)) {
+          precedenceGraph.edges.push({from, to});
+          precedenceGraph._addedEdges.add(key);
+          log(`Conflicto detectado: arista en grafo ${from} → ${to}`, true);
+          showConflictAlert(`Conflicto ${from} → ${to} detectado al operar sobre ${varX}`);
+        }
+      }
+    }
+  }
+
+  function updateGraph() {
+    while (graphSVG.firstChild) {
+      graphSVG.removeChild(graphSVG.firstChild);
+    }
+    const svgNS = "http://www.w3.org/2000/svg";
+    const defs = document.createElementNS(svgNS, 'defs');
+    const marker = document.createElementNS(svgNS, 'marker');
+    marker.setAttribute('id', 'arrowhead');
+    marker.setAttribute('markerWidth', '10');
+    marker.setAttribute('markerHeight', '7');
+    marker.setAttribute('refX', '8');
+    marker.setAttribute('refY', '3.5');
+    marker.setAttribute('orient', 'auto');
+    marker.setAttribute('fill', '#533724');
+    const pathMarker = document.createElementNS(svgNS, 'path');
+    pathMarker.setAttribute('d', 'M0,0 L10,3.5 L0,7 Z');
+    marker.appendChild(pathMarker);
+    defs.appendChild(marker);
+    graphSVG.appendChild(defs);
+
+    const positions = {
+      T1: {x: 140, y: 150},
+      T2: {x: 360, y: 150}
+    };
+    const radius = 40;
+
+    function hasCycle() {
+      const edges = precedenceGraph.edges;
+      for(const e of edges) {
+        if(edges.find(ed => ed.from === e.to && ed.to === e.from)) {
+          return true;
+        }
+      }
+      return false;
+    }
+    const cycle = hasCycle();
+
+    precedenceGraph.edges.forEach(edge => {
+      const fromPos = positions[edge.from];
+      const toPos = positions[edge.to];
+      const path = document.createElementNS(svgNS, 'path');
+      path.setAttribute('class', 'edge' + (cycle ? ' conflict' : ''));
+
+      let d;
+      if(edge.from === edge.to) {
+        d = `M${fromPos.x} ${fromPos.y - radius} 
+            C${fromPos.x + 60} ${fromPos.y - radius - 60}, 
+             ${fromPos.x + 60} ${fromPos.y + radius + 60}, 
+             ${fromPos.x} ${fromPos.y + radius}`;
+      } else {
+        const midX = (fromPos.x + toPos.x) / 2;
+        const direction = (edge.from === 'T1' && edge.to === 'T2') ? -50 : 50;
+        const midY = (fromPos.y + toPos.y) / 2 + direction;
+        d = `M${fromPos.x} ${fromPos.y} Q${midX} ${midY} ${toPos.x} ${toPos.y}`;
+      }
+
+      path.setAttribute('d', d);
+      graphSVG.appendChild(path);
+    });
+
+    Object.entries(positions).forEach(([id, pos]) => {
+      const group = document.createElementNS(svgNS, 'g');
+      group.setAttribute('class', 'node');
+      group.setAttribute('transform', `translate(${pos.x},${pos.y})`);
+
+      const circle = document.createElementNS(svgNS, 'circle');
+      circle.setAttribute('r', radius);
+      if (cycle) {
+        circle.setAttribute('fill', '#D62828');
+        circle.setAttribute('stroke', '#7F1B1B');
+      }
+
+      const text = document.createElementNS(svgNS, 'text');
+      text.textContent = id;
+
+      group.appendChild(circle);
+      group.appendChild(text);
+      graphSVG.appendChild(group);
+    });
+  }
+
+  function showConflictAlert(msg) {
+    conflictAlert.textContent = msg;
+    conflictAlert.style.display = 'block';
+    setTimeout(() => { conflictAlert.style.display = 'none'; }, 4000);
+  }
+
+  function checkDeadlock() {
+    if (!strict2PLCheckbox.checked) {
+      deadlockAlert.style.display = 'none';
+      return false;
+    }
+    const waitGraph = { T1: new Set(), T2: new Set() };
+    Object.entries(locks).forEach(([resource, lockInfo]) => {
+      if (lockInfo.locker && lockInfo.queue.length > 0) {
+        const locker = lockInfo.locker;
+        for (const waiter of lockInfo.queue) {
+          waitGraph[waiter.tx].add(locker);
+        }
+      }
+    });
+    if (waitGraph.T1.has('T2') && waitGraph.T2.has('T1')) {
+      deadlockAlert.style.display = 'block';
+      return true;
+    }
+    deadlockAlert.style.display = 'none';
+    return false;
+  }
+
+  function executeStepTx(tx) {
+    if(executedSteps[tx] >= transacciones[tx].length) {
+      log(`${tx} ya completó todos sus pasos.`);
+      updateStatusButtons();
+      return false;
+    }
+    if (transactionStatus[tx] !== 'active') {
+      log(`${tx} está en estado '${transactionStatus[tx]}' y no puede continuar.`);
+      updateStatusButtons();
+      return false;
+    }
+
+    const stepIndex = executedSteps[tx];
+    const step = transacciones[tx][stepIndex];
+    const strict2pl = strict2PLCheckbox.checked;
+
+    log(`Ejecutando ${tx} paso ${stepIndex + 1}: ${step.desc}`);
+
+    if(strict2pl) {
+      if(step.op === 'READ') {
+        if(!requestLock(tx, step.var, 'R')) {
+          updateStatusButtons();
+          checkDeadlock();
+          return false;
+        }
+      } else if (step.op === 'WRITE' || step.op === 'SUB' || step.op === 'ADD') {
+        let resourceVar = step.var;
+        if(resourceVar && !requestLock(tx, resourceVar, 'W')) {
+          updateStatusButtons();
+          checkDeadlock();
+          return false;
+        }
+      }
+    }
+
+    switch(step.op) {
+      case 'READ':
+        memory[tx][step.var] = DB[step.var];
+        break;
+      case 'SUB':
+        if(memory[tx][step.var] === undefined) {
+          log(`ERROR: ${tx} intenta modificar variable no leída ${step.var}`, true);
+          transactionStatus[tx] = 'aborted';
+          updateStatusButtons();
+          executedSteps[tx]++;
+          return true;
+        }
+        memory[tx][step.var] -= step.val;
+        break;
+      case 'ADD':
+        if(memory[tx][step.var] === undefined) {
+          log(`ERROR: ${tx} intenta modificar variable no leída ${step.var}`, true);
+          transactionStatus[tx] = 'aborted';
+          updateStatusButtons();
+          executedSteps[tx]++;
+          return true;
+        }
+        memory[tx][step.var] += step.val;
+        break;
+      case 'WRITE':
+        if(memory[tx][step.var] === undefined) {
+          log(`ERROR: ${tx} intenta escribir variable no leída ${step.var}`, true);
+          transactionStatus[tx] = 'aborted';
+          updateStatusButtons();
+          executedSteps[tx]++;
+          return true;
+        }
+        DB[step.var] = memory[tx][step.var];
+        break;
+      case 'COMMIT':
+        transactionStatus[tx] = 'committed';
+        if(strict2pl) releaseLocks(tx);
+        log(`${tx} COMMIT exitoso. Estado final de DB: A=${DB.A}, B=${DB.B}, C=${DB.C}`);
+        break;
+      case 'ROLLBACK':
+        transactionStatus[tx] = 'aborted';
+        DB = {...initialDB};
+        memory[tx] = {};
+        if(strict2pl) releaseLocks(tx);
+        log(`${tx} ROLLBACK realizado. DB restaurada a estado inicial.`);
+        break;
+    }
+
+    detectConflictsAndUpdateGraph({transaccion: tx, opIndex: stepIndex, operation: step});
+
+    executedSteps[tx]++;
+    updateTransStepsUI();
+    updateAccountValues();
+    updateInvariant();
+    updateStatusButtons();
+    updateGraph();
+    checkDeadlock();
+
+    return true;
+  }
+
+  // Eventos selección
+
+  renderDesafiosList();
+
+  startDesafioBtn.addEventListener('click', () => {
+    if(!selectedDesafio) return;
+    document.getElementById('desafios-panel').style.display = 'none';
+    simuladorContainer.style.display = 'flex';
+    resetSimulation();
+  });
+
+  backToDesafiosBtn.addEventListener('click', () => {
+    simuladorContainer.style.display = 'none';
+    document.getElementById('desafios-panel').style.display = 'block';
+    descDesafioDiv.textContent = '<em>Seleccione un desafío para leer su descripción y configurar el simulador.</em>';
+    selectedDesafio = null;
+    startDesafioBtn.disabled = true;
+    Array.from(desafiosListDiv.children).forEach(div => div.classList.remove('selected'));
+  });
+
+  resetBtn.addEventListener('click', resetSimulation);
+  execT1Btn.addEventListener('click', () => executeStepTx('T1'));
+  execT2Btn.addEventListener('click', () => executeStepTx('T2'));
+
+})();
+</script>
+</body>
+</html>
